@@ -1,0 +1,5 @@
+flask-mail
+flask
+flask-sqlalchemy
+pillow
+mysqlclient
