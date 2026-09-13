@@ -1,3 +1,5 @@
+.env
+
 #python virtual env
 venv/
 
@@ -5,7 +7,5 @@ venv/
 __pycache__/
 *.pyc
 
-#environment variable
-.env
 
 .vscode/
