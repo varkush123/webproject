@@ -22,6 +22,8 @@ GH_URL = os.getenv('gh_url')
 
 BLOG_NAME = os.getenv('blog_name')
 TAG_LINE = os.getenv('tag_line')
+ABOUT_TEXT = os.getenv('about_text')
+
 
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
@@ -45,6 +47,14 @@ class Contacts(db.Model):
     msg = db.Column(db.String(120), nullable=False)
     date = db.Column(db.String(12), nullable=True)
 
+class Posts(db.Model):
+    sno = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(80), nullable=False)
+    slug = db.Column(db.String(21), nullable=False)
+    content = db.Column(db.String(120), nullable=False)
+    date = db.Column(db.String(12), nullable=True)
+    img_file = db.Column(db.String(12), nullable=True)
+
 
 @app.route("/")
 def home ():
@@ -62,7 +72,8 @@ def about ():
         tw_url=TW_URL,
         gh_url=GH_URL,
         blog_name=BLOG_NAME,
-        tag_line=TAG_LINE)
+        tag_line=TAG_LINE,
+        about_text=ABOUT_TEXT)
 
 @app.route("/contact", methods = ['GET', 'POST'])
 def contact ():
@@ -89,13 +100,16 @@ def contact ():
         blog_name=BLOG_NAME,
         tag_line=TAG_LINE)
 
-@app.route("/post")
-def post ():
+@app.route("/post/<string:post_slug>", methods = ['GET'])
+def post (post_slug):
+   post = Posts.query.filter_by(slug=post_slug).first()
+   
    return render_template('post.html',
         fb_url=FB_URL,
         tw_url=TW_URL,
         gh_url=GH_URL,
         blog_name=BLOG_NAME,
-        tag_line=TAG_LINE)
+        tag_line=TAG_LINE,
+        post=post)
 
 app.run(debug = True)
