@@ -23,6 +23,8 @@ GH_URL = os.getenv('gh_url')
 BLOG_NAME = os.getenv('blog_name')
 TAG_LINE = os.getenv('tag_line')
 ABOUT_TEXT = os.getenv('about_text')
+NO_OF_POSTS = int(os.getenv('no_of_posts'))
+LOGIN_IMAGE = os.getenv('login_image')
 
 
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -54,16 +56,21 @@ class Posts(db.Model):
     content = db.Column(db.String(120), nullable=False)
     date = db.Column(db.String(12), nullable=True)
     img_file = db.Column(db.String(12), nullable=True)
+    tagline = db.Column(db.String(12), nullable=True)
+    
+    
 
 
 @app.route("/")
 def home ():
+   posts = Posts.query.filter_by().all() [0:NO_OF_POSTS]
    return render_template('index.html', 
         fb_url=FB_URL,
         tw_url=TW_URL,
         gh_url=GH_URL,
         blog_name=BLOG_NAME,
-        tag_line=TAG_LINE)
+        tag_line=TAG_LINE,
+        posts=posts)
 
 @app.route("/about")
 def about ():
@@ -74,6 +81,14 @@ def about ():
         blog_name=BLOG_NAME,
         tag_line=TAG_LINE,
         about_text=ABOUT_TEXT)
+
+@app.route("/dashboard", methods=['GET','POST'])
+def dashboard ():
+   if(request.method== 'POST'):
+      #redirect to admin panel
+      pass
+   else: 
+       return render_template('login.html',blog_name=BLOG_NAME, login_image=LOGIN_IMAGE)
 
 @app.route("/contact", methods = ['GET', 'POST'])
 def contact ():
