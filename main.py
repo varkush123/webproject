@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail
 from dotenv import load_dotenv
@@ -9,6 +9,10 @@ load_dotenv()
 
 local_server = True
 app = Flask(__name__)
+
+
+app.secret_key = 'momos'
+
 EMAIL_USER = os.getenv('EMAIL_USER')
 EMAIL_PASS = os.getenv('EMAIL_PASS')
 
@@ -25,6 +29,8 @@ TAG_LINE = os.getenv('tag_line')
 ABOUT_TEXT = os.getenv('about_text')
 NO_OF_POSTS = int(os.getenv('no_of_posts'))
 LOGIN_IMAGE = os.getenv('login_image')
+ADMIN_USER = os.getenv('admin_user')
+ADMIN_PASS = os.getenv('admin_password')
 
 
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -84,11 +90,31 @@ def about ():
 
 @app.route("/dashboard", methods=['GET','POST'])
 def dashboard ():
+   if ('user' in session and session['user'] ==ADMIN_USER):
+      posts = Posts.query.all()
+      return render_template('dashboard.html', posts = posts,fb_url=FB_URL,
+              tw_url=TW_URL,
+              gh_url=GH_URL,
+              blog_name=BLOG_NAME,
+              tag_line=TAG_LINE,
+              about_text=ABOUT_TEXT)
+
+   
    if(request.method== 'POST'):
-      #redirect to admin panel
-      pass
-   else: 
-       return render_template('login.html',blog_name=BLOG_NAME, login_image=LOGIN_IMAGE)
+      username = request.form.get('uname')
+      userpass = request.form.get('pass')
+      if(username == ADMIN_USER and userpass == ADMIN_PASS):
+         #set the session variable
+         session['user'] = username
+         posts = Posts.query.all()
+         return render_template('dashboard.html', posts = posts, fb_url=FB_URL,
+                 tw_url=TW_URL,
+                 gh_url=GH_URL,
+                 blog_name=BLOG_NAME,
+                 tag_line=TAG_LINE,
+                 about_text=ABOUT_TEXT)
+    
+   return render_template('login.html',blog_name=BLOG_NAME, login_image=LOGIN_IMAGE)
 
 @app.route("/contact", methods = ['GET', 'POST'])
 def contact ():
