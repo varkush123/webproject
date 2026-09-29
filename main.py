@@ -1,4 +1,5 @@
 import os
+import math
 from flask import Flask, render_template, request, session, redirect
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
@@ -63,7 +64,7 @@ class Posts(db.Model):
     slug = db.Column(db.String(21), nullable=False)
     content = db.Column(db.String(120), nullable=False)
     date = db.Column(db.String(12), nullable=True)
-    img_file = db.Column(db.String(12), nullable=True)
+    img_file = db.Column(db.String(15), nullable=True)
     tagline = db.Column(db.String(12), nullable=True)
     
     
@@ -71,8 +72,30 @@ class Posts(db.Model):
 
 @app.route("/")
 def home ():
-   posts = Posts.query.filter_by().all() [0:NO_OF_POSTS]
-   return render_template('index.html', 
+   posts = Posts.query.filter_by().all() 
+   last = math.ceil(len(posts)/NO_OF_POSTS)
+   #[0:NO_OF_POSTS]
+   #posts = posts[]
+   page = request.args.get('page')
+   if(not str(page).isnumeric()):
+      page = 1
+   page=int(page)
+   posts = posts[(page-1)*NO_OF_POSTS: (page-1)*NO_OF_POSTS+ NO_OF_POSTS]
+   #pagination logic
+   #first
+   if (page==1):
+      prev = "#"
+      next = "/?page="+ str(page+1)
+   elif(page==last):
+      prev = "/?page="+ str(page-1)
+      next = "#"
+   else:
+      prev = "/?page="+ str(page-1)
+      next = "/?page="+ str(page+1)
+
+  
+
+   return render_template('index.html', prev=prev, next=next,
         fb_url=FB_URL,
         tw_url=TW_URL,
         gh_url=GH_URL,
