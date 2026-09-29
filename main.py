@@ -1,6 +1,7 @@
 import os
 from flask import Flask, render_template, request, session, redirect
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.utils import secure_filename
 from flask_mail import Mail
 from dotenv import load_dotenv
 from datetime import datetime
@@ -31,8 +32,9 @@ NO_OF_POSTS = int(os.getenv('no_of_posts'))
 LOGIN_IMAGE = os.getenv('login_image')
 ADMIN_USER = os.getenv('admin_user')
 ADMIN_PASS = os.getenv('admin_password')
+UPLOAD_LOCATION = os.getenv('upload_location')
 
-
+app.config['UPLOAD_FOLDER'] = UPLOAD_LOCATION
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
@@ -145,6 +147,32 @@ def edit(sno):
             return redirect('/edit/'+sno)
       post = Posts.query.filter_by(sno=sno).first() 
       return render_template('edit.html', blog_name=BLOG_NAME, fb_url=FB_URL, tw_url=TW_URL, gh_url=GH_URL, post=post)
+
+
+@app.route("/uploader", methods = ['GET', 'POST'])
+def uploader():
+   if ('user' in session and session['user'] ==ADMIN_USER):
+      if(request.method== 'POST'):
+         f= request.files['file1']
+         f.save(os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(f.filename)))
+         return "Uploaded successfully"
+
+
+
+@app.route("/logout")
+def logout():
+   session.pop('user')
+   return redirect('/dashboard')
+
+
+@app.route("/delete/<string:sno>", methods = ['GET', 'POST'])
+def delete(sno):
+   if ('user' in session and session['user'] ==ADMIN_USER):
+      post = Posts.query.filter_by(sno=sno).first()
+      db.session.delete(post)
+      db.session.commit()
+   return redirect('/dashboard')
+
 
 @app.route("/contact", methods = ['GET', 'POST'])
 def contact ():
