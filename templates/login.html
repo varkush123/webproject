@@ -24,7 +24,21 @@
   <body class="text-center">
     <link href="{{url_for('static', filename='css/signin.css')}}" rel="stylesheet">
     <form class="form-signin" action="/dashboard" method="post">
-    <img class="mb-4" src="{{url_for('static', filename='assets/img/' + login_image)}}" alt="" width="72" height="72"> 
+    
+    {% if login_image and login_image.startswith('http') %}
+        <img class="mb-4"
+            src="{{ login_image }}"
+            alt="Admin Logo"
+            width="72"
+            height="72">
+    {% else %}
+        <img class="mb-4"
+            src="{{ url_for('static', filename='assets/img/' + login_image) }}"
+            alt="Admin Logo"
+            width="72"
+            height="72">
+    {% endif %}
+
       <h1 class="h3 mb-3 font-weight-normal">Admin Login</h1>
       <label for="uname" class="sr-only"></label>
       <input type="text" id="uname" name="uname" class="form-control" placeholder="Username" required autofocus>

@@ -2,8 +2,13 @@
 {% block body %}
 
         <!-- Page Header-->
-        {% set background_image = url_for("static", filename="assets/img/about-bg.jpg") %}
-        <header class="masthead" style="background-image: url('{{ background_image }}')">
+            {% if edit_bg and edit_bg.startswith('http') %}
+                {% set background_image = edit_bg %}
+            {% else %}
+                {% set background_image = url_for('static', filename='assets/img/post_back.jpg') %}
+            {% endif %}
+
+            <header class="masthead" style="background-image: url('{{ background_image }}')">
             <div class="container position-relative px-4 px-lg-5">
                 <div class="row gx-4 gx-lg-5 justify-content-center">
                     <div class="col-md-10 col-lg-8 col-xl-7">
@@ -28,7 +33,15 @@
                 
         <h1>Add/Edit Post</h1>
 
-        <form id="contactForm" action="/edit/{{post.sno}}" method="POST" data-sb-form-api-token="API_TOKEN">
+        
+        
+        <form id="contactForm"
+            action="{{ url_for('edit', sno=post.sno if post else 0) }}"
+            method="POST"
+            enctype="multipart/form-data"
+            data-sb-form-api-token="API_TOKEN">
+
+
             <div class="form-floating">
                 <input class="form-control" id="title" type="text" name="title" placeholder="Enter title..." data-sb-validations="required" value="{{post.title}}" />
                 <label for="title">Title</label>
@@ -50,11 +63,28 @@
                 <label for="content">Content</label>
                 <div class="invalid-feedback" data-sb-feedback="content:required">A content is required.</div>
             </div>
+            
             <div class="form-floating">
-                <input class="form-control" id="img_file" name="img_file" placeholder="drop img file..." data-sb-validations="required" value="{{post.img_file}}"/>
+                <input class="form-control"
+                    id="img_file"
+                    name="img_file"
+                    placeholder="Image URL will appear here"
+                    value="{{ post.img_file if post and post.img_file else session.get('uploaded_image_url', '') }}"/>
                 <label for="img_file">Image file</label>
-              
             </div>
+
+            <div class="mb-3">
+                <label for="image_upload">Upload new image</label>
+                <input class="form-control"
+                    type="file"
+                    id="image_upload"
+                    name="image_upload"
+                    accept="image/*">
+                <small class="text-muted">
+                    Select an image to replace the current image.
+                </small>
+            </div>
+
             <br />
             <!-- Submit success message-->
                                

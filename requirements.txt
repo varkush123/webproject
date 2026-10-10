@@ -4,3 +4,4 @@ flask-sqlalchemy
 pillow
 mysqlclient
 python-dotenv
+supabase

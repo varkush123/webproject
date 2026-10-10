@@ -4,7 +4,13 @@
 
 
         <!-- Page Header-->
-        {% set background_image = url_for("static", filename="assets/img/about-bg.jpg") %}
+        
+        {% if about_bg and about_bg.startswith('http') %}
+            {% set background_image = about_bg %}
+        {% else %}
+            {% set background_image = url_for("static", filename="assets/img/post_back.jpg") %}
+        {% endif %}
+
         <header class="masthead" style="background-image: url('{{ background_image }}')">
             <div class="container position-relative px-4 px-lg-5">
                 <div class="row gx-4 gx-lg-5 justify-content-center">

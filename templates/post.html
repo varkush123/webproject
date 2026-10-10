@@ -4,8 +4,16 @@
 
 
         <!-- Page Header-->
-         {% set fname = 'assets/img/' + post.img_file %}
-        <header class="masthead" style="background-image: url('{{ url_for('static', filename=fname) }}')">
+        
+        {% if post.img_file and post.img_file.startswith('http') %}
+            {% set background_image = post.img_file %}
+        {% else %}
+            {% set fname = 'assets/img/' + (post.img_file or 'post_back.jpg') %}
+            {% set background_image = url_for('static', filename=fname) %}
+        {% endif %}
+
+        <header class="masthead" style="background-image: url('{{ background_image }}')">
+
        
         
         

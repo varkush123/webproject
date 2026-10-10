@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 from flask_mail import Mail
 from dotenv import load_dotenv
 from datetime import datetime
+from supabase import create_client
 
 load_dotenv()
 
@@ -34,6 +35,11 @@ LOGIN_IMAGE = os.getenv('login_image')
 ADMIN_USER = os.getenv('admin_user')
 ADMIN_PASS = os.getenv('admin_password')
 UPLOAD_LOCATION = os.getenv('upload_location')
+SUPABASE_URL = os.getenv('NEXT_PUBLIC_SUPABASE_URL')
+SUPABASE_KEY = os.getenv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY')
+
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_LOCATION
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -64,7 +70,7 @@ class Posts(db.Model):
     slug = db.Column(db.String(21), nullable=False)
     content = db.Column(db.String(120), nullable=False)
     date = db.Column(db.String(12), nullable=True)
-    img_file = db.Column(db.String(15), nullable=True)
+    img_file = db.Column(db.String(500), nullable=True)
     tagline = db.Column(db.String(12), nullable=True)
     
     
@@ -101,84 +107,236 @@ def home ():
         gh_url=GH_URL,
         blog_name=BLOG_NAME,
         tag_line=TAG_LINE,
-        posts=posts)
+        posts=posts,
+        index_bg=os.getenv('INDEX_BG', '')
+        )
+
+
+
 
 @app.route("/about")
-def about ():
-   return render_template('about.html', 
+def about():
+    return render_template(
+        'about.html',
         fb_url=FB_URL,
         tw_url=TW_URL,
         gh_url=GH_URL,
         blog_name=BLOG_NAME,
         tag_line=TAG_LINE,
-        about_text=ABOUT_TEXT)
-
-@app.route("/dashboard", methods=['GET','POST'])
-def dashboard ():
-   if ('user' in session and session['user'] ==ADMIN_USER):
-      posts = Posts.query.all()
-      return render_template('dashboard.html', posts = posts,fb_url=FB_URL,
-              tw_url=TW_URL,
-              gh_url=GH_URL,
-              blog_name=BLOG_NAME,
-              tag_line=TAG_LINE,
-              about_text=ABOUT_TEXT)
-
-   
-   if(request.method== 'POST'):
-      username = request.form.get('uname')
-      userpass = request.form.get('pass')
-      if(username == ADMIN_USER and userpass == ADMIN_PASS):
-         #set the session variable
-         session['user'] = username
-         posts = Posts.query.all()
-         return render_template('dashboard.html', posts = posts, fb_url=FB_URL,
-                 tw_url=TW_URL,
-                 gh_url=GH_URL,
-                 blog_name=BLOG_NAME,
-                 tag_line=TAG_LINE,
-                 about_text=ABOUT_TEXT)
-    
-   return render_template('login.html',blog_name=BLOG_NAME, login_image=LOGIN_IMAGE)
+        about_text=ABOUT_TEXT,
+        about_bg=os.getenv('ABOUT_BG', '')
+    )
 
 
-@app.route("/edit/<string:sno>", methods = ['GET', 'POST'])
+
+@app.route("/dashboard", methods=['GET', 'POST'])
+def dashboard():
+    if 'user' in session and session['user'] == ADMIN_USER:
+        posts = Posts.query.all()
+
+        return render_template(
+            'dashboard.html',
+            posts=posts,
+            fb_url=FB_URL,
+            tw_url=TW_URL,
+            gh_url=GH_URL,
+            blog_name=BLOG_NAME,
+            tag_line=TAG_LINE,
+            about_text=ABOUT_TEXT,
+            dashboard_bg=os.getenv('DASHBOARD_BG', '')
+        )
+
+    if request.method == 'POST':
+        username = request.form.get('uname')
+        userpass = request.form.get('pass')
+
+        if username == ADMIN_USER and userpass == ADMIN_PASS:
+            # Set the session variable
+            session['user'] = username
+            posts = Posts.query.all()
+
+            return render_template(
+                'dashboard.html',
+                posts=posts,
+                fb_url=FB_URL,
+                tw_url=TW_URL,
+                gh_url=GH_URL,
+                blog_name=BLOG_NAME,
+                tag_line=TAG_LINE,
+                about_text=ABOUT_TEXT,
+                dashboard_bg=os.getenv('DASHBOARD_BG', '')
+            )
+
+    return render_template(
+        'login.html',
+        blog_name=BLOG_NAME,
+        login_image=LOGIN_IMAGE
+    )
+
+
+
+
+@app.route("/edit/<string:sno>", methods=['GET', 'POST'])
 def edit(sno):
-   if ('user' in session and session['user'] ==ADMIN_USER):
-      if request.method == 'POST':
-         box_title = request.form.get('title')
-         tagline = request.form.get('tagline')
-         slug = request.form.get('slug')
-         content = request.form.get('content')
-         img_file = request.form.get('img_file')
-         date = datetime.now()
+    if 'user' in session and session['user'] == ADMIN_USER:
 
-         if sno == '0':
-            post = Posts(title=box_title, slug=slug, content=content, img_file=img_file, tagline=tagline, date=date)
-            db.session.add(post)
-            db.session.commit()
+        if request.method == 'POST':
+            box_title = request.form.get('title')
+            tagline = request.form.get('tagline')
+            slug = request.form.get('slug')
+            content = request.form.get('content')
+            img_file = request.form.get('img_file')
+            date = datetime.now()
 
-         else:
-            post = Posts.query.filter_by(sno=sno).first()
-            post.title = box_title
-            post.slug = slug
-            post.content = content
-            post.tagline = tagline
-            post.img_file = img_file
-            post.date = date
-            db.session.commit()
-            return redirect('/edit/'+sno)
-      post = Posts.query.filter_by(sno=sno).first() 
-      return render_template('edit.html', blog_name=BLOG_NAME, fb_url=FB_URL, tw_url=TW_URL, gh_url=GH_URL, post=post)
+            # Check whether an image file was selected
+            uploaded_file = request.files.get('image_upload')
+
+            if uploaded_file and uploaded_file.filename:
+                try:
+                    if not uploaded_file.content_type or not uploaded_file.content_type.startswith('image/'):
+                        return "Please select a valid image file.", 400
+
+                    # Create a unique filename to avoid duplicate names
+                    original_name = secure_filename(uploaded_file.filename)
+
+                    if not original_name:
+                        return "Invalid image filename.", 400
+
+                    filename = (
+                        datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+                        + '_'
+                        + original_name
+                    )
+
+                    # Upload image to Supabase
+                    file_data = uploaded_file.read()
+
+                    supabase.storage.from_("Images").upload(
+                        filename,
+                        file_data,
+                        {"content-type": uploaded_file.content_type}
+                    )
+
+                    # Get the public URL
+                    img_file = supabase.storage.from_("Images").get_public_url(
+                        filename
+                    )
+
+                except Exception as e:
+                    return f"Image upload failed: {str(e)}", 500
+
+            # Create a new post
+            if sno == '0':
+                post = Posts(
+                    title=box_title,
+                    slug=slug,
+                    content=content,
+                    img_file=img_file,
+                    tagline=tagline,
+                    date=date
+                )
+
+                db.session.add(post)
+                db.session.commit()
+
+                session.pop('uploaded_image_url', None)
+
+                return redirect('/dashboard')
+
+            # Update an existing post
+            else:
+                post = Posts.query.filter_by(sno=sno).first()
+
+                if post is None:
+                    return "Post not found", 404
+
+                post.title = box_title
+                post.slug = slug
+                post.content = content
+                post.tagline = tagline
+                post.img_file = img_file
+                post.date = date
+
+                db.session.commit()
+
+                session.pop('uploaded_image_url', None)
+
+                return redirect('/edit/' + sno)
+
+        # Display the form
+        post = Posts.query.filter_by(sno=sno).first()
+
+        if sno != '0' and post is None:
+            return "Post not found", 404
+
+        return render_template(
+            'edit.html',
+            blog_name=BLOG_NAME,
+            fb_url=FB_URL,
+            tw_url=TW_URL,
+            gh_url=GH_URL,
+            post=post,
+            edit_bg=os.getenv('EDIT_BG', '')
+        )
+
+    return redirect('/dashboard')
 
 
-@app.route("/uploader", methods = ['GET', 'POST'])
+
+
+
+
+
+@app.route("/uploader", methods=['GET', 'POST'])
 def uploader():
-   if ('user' in session and session['user'] ==ADMIN_USER):
-      if(request.method== 'POST'):
-         f= request.files['file1']
-         f.save(os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(f.filename)))
-         return "Uploaded successfully"
+    if 'user' in session and session['user'] == ADMIN_USER:
+        if request.method == 'POST':
+            f = request.files.get('file1')
+
+            if not f or not f.filename:
+                return "Please select an image."
+
+            filename = secure_filename(f.filename)
+
+            try:
+                # Check whether the filename already exists
+                files = supabase.storage.from_("Images").list()
+
+                existing_files = [
+                    item["name"] for item in files
+                ]
+
+                if filename in existing_files:
+                    return f"Image already exists: {filename}"
+
+                # Upload image to Supabase
+                file_data = f.read()
+
+                supabase.storage.from_("Images").upload(
+                    filename,
+                    file_data,
+                    {"content-type": f.content_type}
+                )
+
+                # Get the public image URL
+                image_url = supabase.storage.from_("Images").get_public_url(
+                    filename
+                )
+
+                # Store URL temporarily for the new post form
+                session['uploaded_image_url'] = image_url
+
+                # Open the New Post form
+                return redirect('/edit/0')
+
+            except Exception as e:
+                return f"Upload failed: {str(e)}", 500
+
+        return redirect('/dashboard')
+
+    return "Unauthorized", 401
+
+
 
 
 
@@ -197,30 +355,44 @@ def delete(sno):
    return redirect('/dashboard')
 
 
-@app.route("/contact", methods = ['GET', 'POST'])
-def contact ():
-   if(request.method== 'POST'):
-      # add entry to the database
-      name = request.form.get('name')
-      email   = request.form.get('email')
-      phone   = request.form.get('phone')
-      message   = request.form.get('message')
-      
-      entry = Contacts(name=name, phone_num= phone, msg= message, date= datetime.now(), email= email)
-      db.session.add(entry)
-      db.session.commit()
-      mail.send_message('New Message from ' + name,
-                        sender=email, 
-                        recipients=[EMAIL_USER],
-                        body = message + "\n" + phone
-                        )     
-   
-   return render_template('contact.html', 
+
+
+@app.route("/contact", methods=['GET', 'POST'])
+def contact():
+    if request.method == 'POST':
+        # Add entry to the database
+        name = request.form.get('name')
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        message = request.form.get('message')
+
+        entry = Contacts(
+            name=name,
+            phone_num=phone,
+            msg=message,
+            date=datetime.now(),
+            email=email
+        )
+
+        db.session.add(entry)
+        db.session.commit()
+
+        mail.send_message(
+            'New Message from ' + name,
+            sender=email,
+            recipients=[EMAIL_USER],
+            body=message + "\n" + phone
+        )
+
+    return render_template(
+        'contact.html',
         fb_url=FB_URL,
         tw_url=TW_URL,
         gh_url=GH_URL,
         blog_name=BLOG_NAME,
-        tag_line=TAG_LINE)
+        tag_line=TAG_LINE,
+        contact_bg=os.getenv('CONTACT_BG', '')
+    )
 
 @app.route("/post/<string:post_slug>", methods = ['GET'])
 def post (post_slug):

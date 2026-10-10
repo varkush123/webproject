@@ -2,7 +2,11 @@
 {% block body %}
 
         <!-- Page Header-->
-        {% set background_image = url_for("static", filename="assets/img/home-bg.jpg") %}
+        {% if index_bg and index_bg.startswith('http') %}
+            {% set background_image = index_bg %}
+        {% else %}
+            {% set background_image = url_for('static', filename='assets/img/post_back.jpg') %}
+        {% endif %}
         <header class="masthead" style="background-image: url('{{ background_image }}')">
             <div class="container position-relative px-4 px-lg-5">
                 <div class="row gx-4 gx-lg-5 justify-content-center">
@@ -24,6 +28,21 @@
 
                 {% for post in posts %}
                     <div class="post-preview">
+                        
+                        {% if post.img_file %}
+                            {% if post.img_file.startswith('http') %}
+                                {% set post_image = post.img_file %}
+                            {% else %}
+                                {% set post_image = url_for('static', filename='assets/img/' + post.img_file) %}
+                            {% endif %}
+
+                            <a href="/post/{{ post.slug }}">
+                                <img src="{{ post_image }}"
+                                    alt="{{ post.title }}"
+                                    style="max-width: 100%; height: auto; margin-bottom: 15px;">
+                            </a>
+                        {% endif %}
+
                         <a href="/post/{{post.slug}}">
                             <h2 class="post-title">{{ post.title }}</h2>
                             <h3 class="post-subtitle">{{post.tagline}}</h3>

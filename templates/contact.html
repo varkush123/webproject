@@ -4,7 +4,13 @@
 
 
         <!-- Page Header-->
-        {% set background_image = url_for("static", filename="assets/img/contact-bg.jpg") %}
+        
+        {% if contact_bg and contact_bg.startswith('http') %}
+            {% set background_image = contact_bg %}
+        {% else %}
+            {% set background_image = url_for("static", filename="assets/img/post_back.jpg") %}
+        {% endif %}
+
         <header class="masthead" style="background-image: url('{{ background_image }}')">
        
        
