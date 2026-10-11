@@ -9,3 +9,7 @@ __pycache__/
 
 
 .vscode/
+
+# Local testing files
+test_supabase.py
+test_flask_db.py

@@ -14,7 +14,9 @@ local_server = True
 app = Flask(__name__)
 
 
-app.secret_key = 'momos'
+
+
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
 EMAIL_USER = os.getenv('EMAIL_USER')
 EMAIL_PASS = os.getenv('EMAIL_PASS')
@@ -50,29 +52,41 @@ app.config['MAIL_PASSWORD'] = EMAIL_PASS
 
 mail = Mail(app) 
 
+
+
+
 if LOCAL_SERVER == "True":
     app.config["SQLALCHEMY_DATABASE_URI"] = LOCAL_URI
 else:
     app.config["SQLALCHEMY_DATABASE_URI"] = PROD_URI
+
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 db = SQLAlchemy(app)
+
 
 class Contacts(db.Model):
     sno = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(80), nullable=False)
-    email = db.Column(db.String(20), nullable=False)
-    phone_num = db.Column(db.String(12))
-    msg = db.Column(db.String(120), nullable=False)
-    date = db.Column(db.String(12), nullable=True)
+    name = db.Column(db.Text, nullable=False)
+    email = db.Column(db.String(50), nullable=False)
+    phone_num = db.Column(db.String(50))
+    msg = db.Column(db.Text, nullable=False)
+    date = db.Column(db.DateTime, nullable=True)
+
 
 class Posts(db.Model):
     sno = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(80), nullable=False)
-    slug = db.Column(db.String(21), nullable=False)
-    content = db.Column(db.String(120), nullable=False)
-    date = db.Column(db.String(12), nullable=True)
-    img_file = db.Column(db.String(500), nullable=True)
-    tagline = db.Column(db.String(12), nullable=True)
-    
+    title = db.Column(db.Text, nullable=False)
+    slug = db.Column(db.String(25), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    date = db.Column(db.DateTime, nullable=True)
+    tagline = db.Column(db.Text, nullable=False)
+
+    if os.getenv("local_server") == "True":
+        img_file = db.Column("img_file", db.String(500), nullable=False)
+    else:
+        img_file = db.Column("image_url", db.String(500), nullable=False)
+
     
 
 
