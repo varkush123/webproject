@@ -338,7 +338,7 @@ def edit(sno):
 
             # Update an existing post
             else:
-                post = Posts.query.filter_by(sno=sno).first()
+                post = Posts.query.filter_by(sno=int(sno)).first()
 
                 if post is None:
                     return "Post not found", 404
@@ -357,7 +357,7 @@ def edit(sno):
                 return redirect('/edit/' + sno)
 
         # Display the form
-        post = Posts.query.filter_by(sno=sno).first()
+        post = Posts.query.filter_by(sno=int(sno)).first()
 
         if sno != '0' and post is None:
             return "Post not found", 404
@@ -442,7 +442,7 @@ def logout():
 @app.route("/delete/<string:sno>", methods = ['GET', 'POST'])
 def delete(sno):
    if ('user' in session and session['user'] ==ADMIN_USER):
-      post = Posts.query.filter_by(sno=sno).first()
+      post = Posts.query.filter_by(sno=int(sno)).first()
       db.session.delete(post)
       db.session.commit()
    return redirect('/dashboard')
