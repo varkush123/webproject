@@ -8,10 +8,20 @@ from dotenv import load_dotenv
 from datetime import datetime
 from supabase import create_client
 
+import atexit
+import requests
+from apscheduler.schedulers.background import BackgroundScheduler
+
+
 load_dotenv()
 
 local_server = True
 app = Flask(__name__)
+
+@app.route('/hello')
+def hello():
+    return "Hello! Flask Blog is running.", 200
+
 
 
 
@@ -87,6 +97,74 @@ class Posts(db.Model):
     else:
         img_file = db.Column("image_url", db.String(500), nullable=False)
 
+
+
+def ping_server():
+    server_url = os.getenv("SERVER_PING_URL")
+
+    if not server_url:
+        print("SERVER_PING_URL is missing.")
+        return
+
+    try:
+        response = requests.get(server_url, timeout=10)
+        print("Server ping status:", response.status_code)
+    except requests.RequestException as e:
+        print("Server ping failed:", e)
+
+
+
+
+def ping_supabase():
+    # 1. Database check
+    try:
+        with app.app_context():
+            db.session.execute(db.text("SELECT 1"))
+            db.session.commit()
+
+        print("Supabase database ping successful.")
+
+    except Exception as e:
+        db.session.rollback()
+        print("Supabase database ping failed:", e)
+
+    # 2. Storage bucket check
+    try:
+        supabase.storage.from_("Images").list()
+
+        print("Supabase bucket ping successful.")
+        print("Bucket accessible.")
+
+    except Exception as e:
+        print("Supabase bucket ping failed:", e)
+
+
+
+
+
+scheduler = BackgroundScheduler()
+
+scheduler.add_job(
+    func=ping_server,
+    trigger="interval",
+    minutes=14,
+    id="server_ping",
+    max_instances=1
+)
+
+
+
+
+scheduler.add_job(
+    func=ping_supabase,
+    trigger="interval",
+    days=6,
+    id="supabase_ping",
+    max_instances=1
+)
+
+scheduler.start()
+atexit.register(lambda: scheduler.shutdown(wait=False))
     
 
 
@@ -420,4 +498,6 @@ def post (post_slug):
         tag_line=TAG_LINE,
         post=post)
 
-app.run(debug = True)
+if __name__ == "__main__":
+    ping_supabase()
+    app.run(debug=True)
