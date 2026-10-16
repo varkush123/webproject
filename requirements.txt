@@ -12,3 +12,4 @@ APScheduler
 requests
 
 psycopg[binary]
+resend
