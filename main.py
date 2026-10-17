@@ -4,6 +4,7 @@ from flask import Flask, render_template, request, session, redirect
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from flask_mail import Mail
+import resend
 from dotenv import load_dotenv
 from datetime import datetime
 from supabase import create_client
@@ -450,32 +451,50 @@ def delete(sno):
 
 
 
+
+
 @app.route("/contact", methods=['GET', 'POST'])
 def contact():
     if request.method == 'POST':
-        # Add entry to the database
-        name = request.form.get('name')
-        email = request.form.get('email')
-        phone = request.form.get('phone')
-        message = request.form.get('message')
+        name = request.form.get('name', '').strip()
+        email = request.form.get('email', '').strip()
+        phone = request.form.get('phone', '').strip()
+        message = request.form.get('message', '').strip()
 
-        entry = Contacts(
-            name=name,
-            phone_num=phone,
-            msg=message,
-            date=datetime.now(),
-            email=email
-        )
+        if not name or not email or not message:
+            return "Please fill in your name, email and message.", 400
 
-        db.session.add(entry)
-        db.session.commit()
+        try:
+            entry = Contacts(
+                name=name,
+                phone_num=phone,
+                msg=message,
+                date=datetime.now(),
+                email=email
+            )
+            db.session.add(entry)
+            db.session.commit()
 
-        mail.send_message(
-            'New Message from ' + name,
-            sender=email,
-            recipients=[EMAIL_USER],
-            body=message + "\n" + phone
-        )
+            resend.api_key = os.getenv("RESEND_API_KEY")
+
+            result = resend.Emails.send({
+                "from": "Blog Contact Form <onboarding@resend.dev>",
+                "to": [os.getenv("RESEND_TO_EMAIL")],
+                "reply_to": email,
+                "subject": f"New Message from {name}",
+                "text": (
+                    f"Name: {name}\n"
+                    f"Email: {email}\n"
+                    f"Phone: {phone}\n\n"
+                    f"Message:\n{message}"
+                )
+            })
+
+            print("Resend email result:", result)
+
+        except Exception as e:
+            app.logger.exception("Contact form email failed")
+            return "Message saved, but email could not be sent. Please try again later.", 500
 
     return render_template(
         'contact.html',
@@ -486,6 +505,7 @@ def contact():
         tag_line=TAG_LINE,
         contact_bg=os.getenv('CONTACT_BG', '')
     )
+
 
 @app.route("/post/<string:post_slug>", methods = ['GET'])
 def post (post_slug):
