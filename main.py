@@ -23,28 +23,6 @@ def hello():
 
 
 
-@app.route('/health/supabase')
-def supabase_health():
-    # Check database
-    try:
-        with app.app_context():
-            db.session.execute(db.text("SELECT 1"))
-    except Exception:
-        db.session.rollback()
-        app.logger.exception("Supabase database health check failed")
-        return "Service unavailable", 503
-
-    # Check Storage bucket
-    try:
-        supabase.storage.from_("Images").list()
-    except Exception:
-        app.logger.exception("Supabase Storage health check failed")
-        return "Service unavailable", 503
-
-    return "OK", 200
-
-
-
 
 
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
@@ -113,73 +91,11 @@ class Posts(db.Model):
 
 
 
-def ping_server():
-    server_url = os.getenv("SERVER_PING_URL")
-
-    if not server_url:
-        print("SERVER_PING_URL is missing.")
-        return
-
-    try:
-        response = requests.get(server_url, timeout=10)
-        print("Server ping status:", response.status_code)
-    except requests.RequestException as e:
-        print("Server ping failed:", e)
-
-
-
-
-def ping_supabase():
-    # 1. Database check
-    try:
-        with app.app_context():
-            db.session.execute(db.text("SELECT 1"))
-            db.session.commit()
-
-        print("Supabase database ping successful.")
-
-    except Exception as e:
-        db.session.rollback()
-        print("Supabase database ping failed:", e)
-
-    # 2. Storage bucket check
-    try:
-        supabase.storage.from_("Images").list()
-
-        print("Supabase bucket ping successful.")
-        print("Bucket accessible.")
-
-    except Exception as e:
-        print("Supabase bucket ping failed:", e)
 
 
 
 
 
-scheduler = BackgroundScheduler()
-
-scheduler.add_job(
-    func=ping_server,
-    trigger="interval",
-    minutes=14,
-    id="server_ping",
-    max_instances=1
-)
-
-
-
-
-scheduler.add_job(
-    func=ping_supabase,
-    trigger="interval",
-    days=6,
-    id="supabase_ping",
-    max_instances=1
-)
-
-scheduler.start()
-atexit.register(lambda: scheduler.shutdown(wait=False))
-    
 
 
 @app.route("/")
@@ -553,6 +469,87 @@ def post (post_slug):
         blog_name=BLOG_NAME,
         tag_line=TAG_LINE,
         post=post)
+
+
+
+
+def ping_self():
+    if os.getenv("ENABLE_SELF_PING", "true").lower() in ("false", "0", "no"):
+        return
+
+    app_url = os.getenv("APP_URL") or os.getenv("SERVER_PING_URL")
+    if not app_url:
+        print("[self_ping] Warning: APP_URL is missing. Self-pinging disabled.")
+        return
+
+    ping_url = f"{app_url.rstrip('/')}/hello"
+    try:
+        response = requests.get(ping_url, timeout=10)
+        if response.status_code == 200:
+            print(f"[self_ping] Ping successful: {ping_url} (status: 200)")
+        else:
+            print(f"[self_ping] Warning: {ping_url} returned status {response.status_code}")
+    except requests.RequestException as e:
+        print(f"[self_ping] Connection error for {ping_url}: {e}")
+    except Exception as e:
+        print(f"[self_ping] Error: {e}")
+
+
+def ping_supabase():
+    # 1. Database check
+    try:
+        with app.app_context():
+            db.session.execute(db.text("SELECT 1"))
+            db.session.commit()
+
+        print("Supabase database ping successful.")
+
+    except Exception as e:
+        db.session.rollback()
+        print("Supabase database ping failed:", e)
+
+    # 2. Storage bucket check
+    try:
+        supabase.storage.from_("Images").list()
+
+        print("Supabase bucket ping successful.")
+        print("Bucket accessible.")
+
+    except Exception as e:
+        print("Supabase bucket ping failed:", e)
+
+
+scheduler = BackgroundScheduler(daemon=True)
+
+try:
+    ping_interval_minutes = int(os.getenv("PING_INTERVAL_MINUTES", "10"))
+except ValueError:
+    ping_interval_minutes = 10
+
+scheduler.add_job(
+    func=ping_self,
+    trigger="interval",
+    minutes=ping_interval_minutes,
+    id="self_ping",
+    max_instances=1
+)
+
+scheduler.add_job(
+    func=ping_supabase,
+    trigger="interval",
+    days=6,
+    id="supabase_ping",
+    max_instances=1
+)
+
+# Avoid duplicate schedulers when running with Werkzeug development reloader
+if not (__name__ == "__main__" and os.environ.get("WERKZEUG_RUN_MAIN") is None):
+    scheduler.start()
+    atexit.register(lambda: scheduler.shutdown(wait=False))
+# <<<<< END: SELF-PING & BACKGROUND SCHEDULER SYSTEM <<<<<
+
+
+
 
 if __name__ == "__main__":
     ping_supabase()
