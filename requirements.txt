@@ -1,14 +1,71 @@
-flask-mail
-flask
-flask-sqlalchemy
-pillow
-mysqlclient
-python-dotenv
-supabase
-psycopg2-binary
-gunicorn
+# ==============================================================================
+# CODING THUNDER — PYTHON DEPENDENCY MANIFEST
+# ==============================================================================
+# Organized by dependency classification (Direct Core, Database Drivers,
+# Production Server, and Supporting / Legacy) with annotated feature usage.
+# ==============================================================================
 
-APScheduler
+
+# ------------------------------------------------------------------------------
+# 1. DIRECT CORE APPLICATION DEPENDENCIES
+# ------------------------------------------------------------------------------
+
+# [Direct Dependency] Core Web Framework
+# Feature: Powers URL routing, HTTP request/response processing, session management, and Jinja2 server-side rendering.
+flask
+
+# [Direct Dependency] Object-Relational Mapping (ORM)
+# Feature: Manages database transactions, schema mapping, and query pooling for the 'Posts' and 'Contacts' models.
+flask-sqlalchemy
+
+# [Direct Dependency] 12-Factor Configuration
+# Feature: Loads environment variables from .env on startup via python-dotenv (`load_dotenv()`).
+python-dotenv
+
+# [Direct Dependency] Cloud Object Storage SDK
+# Feature: Communicates with Supabase Storage ('Images' bucket) to stream uploads and retrieve public CDN URLs.
+supabase
+
+# [Direct Dependency] HTTP Client & Webhook Forwarder
+# Feature: Dispatches visitor contact inquiries to the external Google Apps Script webhook endpoint via HTTP POST.
 requests
 
+# [Direct Dependency] In-Process Background Task Scheduler
+# Feature: Runs background daemon tasks (periodic server self-ping and Supabase connection health checks).
+APScheduler
+
+
+# ------------------------------------------------------------------------------
+# 2. DIRECT DATABASE DRIVER DEPENDENCIES
+# ------------------------------------------------------------------------------
+
+# [Direct Dependency] MySQL Database Driver (Local Development)
+# Feature: High-speed C-extension driver utilized by SQLAlchemy when `local_server=True` connecting to MySQL via `local_uri`.
+mysqlclient
+
+# [Direct Dependency] PostgreSQL Database Drivers (Production / Supabase)
+# Feature: PostgreSQL client adapters enabling SQLAlchemy to communicate with Supabase Postgres when `local_server=False` via `prod_uri`.
+psycopg2-binary
 psycopg[binary]
+
+
+# ------------------------------------------------------------------------------
+# 3. DIRECT PRODUCTION WSGI HTTP SERVER
+# ------------------------------------------------------------------------------
+
+# [Direct Dependency] Production WSGI Application Server
+# Feature: Production-grade multi-worker UNIX HTTP server used to run the Flask application concurrently on cloud platforms (e.g. Render, Railway).
+gunicorn
+
+
+# ------------------------------------------------------------------------------
+# 4. SUPPORTING & TRANSITIVE / LEGACY DEPENDENCIES
+# ------------------------------------------------------------------------------
+
+# [Supporting / Transitive Dependency] Imaging Engine
+# Feature: Python Imaging Library (PIL fork) used in image header validation and media processing workflows.
+pillow
+
+# [Legacy Dependency] Flask Mail Extension
+# Feature: Originally utilized for direct SMTP email delivery; currently retained for backward compatibility with email routines (contact leads now forward via Google Apps Script webhook).
+flask-mail
