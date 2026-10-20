@@ -473,8 +473,6 @@ def delete(sno):
 
 
 
-
-
 @app.route("/contact", methods=['GET', 'POST'])
 def contact():
     if request.method == 'POST':
@@ -487,6 +485,7 @@ def contact():
             return "Please fill in your name, email and message.", 400
 
         try:
+            # Save contact message in database
             entry = Contacts(
                 name=name,
                 phone_num=phone,
@@ -497,6 +496,13 @@ def contact():
             db.session.add(entry)
             db.session.commit()
 
+        except Exception:
+            db.session.rollback()
+            app.logger.exception("Contact message could not be saved")
+            return "Message could not be saved. Please try again later.", 500
+
+        # Existing Resend email to website owner
+        try:
             resend.api_key = os.getenv("RESEND_API_KEY")
 
             result = resend.Emails.send({
@@ -514,9 +520,40 @@ def contact():
 
             print("Resend email result:", result)
 
-        except Exception as e:
-            app.logger.exception("Contact form email failed")
-            return "Message saved, but email could not be sent. Please try again later.", 500
+        except Exception:
+            app.logger.exception("Owner notification email failed")
+
+        # Send confirmation to visitor using Google Apps Script
+        try:
+            email_service_url = os.getenv("EMAIL_SERVICE_URL")
+            email_service_token = os.getenv("EMAIL_SERVICE_TOKEN")
+
+            if not email_service_url or not email_service_token:
+                raise ValueError("Email service environment variables are missing")
+
+            response = requests.post(
+                email_service_url,
+                json={
+                    "token": email_service_token,
+                    "name": name,
+                    "email": email,
+                    "message": message
+                },
+                timeout=20
+            )
+            response.raise_for_status()
+
+            result = response.json()
+
+            if not result.get("success"):
+                raise ValueError("Confirmation email service returned an error")
+
+            print("Visitor confirmation email sent.")
+
+        except Exception:
+            app.logger.exception("Visitor confirmation email failed")
+
+        return "Your message has been submitted successfully!"
 
     return render_template(
         'contact.html',
@@ -527,6 +564,8 @@ def contact():
         tag_line=TAG_LINE,
         contact_bg=os.getenv('CONTACT_BG', '')
     )
+
+
 
 
 @app.route("/post/<string:post_slug>", methods = ['GET'])
