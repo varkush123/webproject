@@ -25,6 +25,28 @@ def hello():
 
 
 
+@app.route('/health/supabase')
+def supabase_health():
+    # Check database
+    try:
+        with app.app_context():
+            db.session.execute(db.text("SELECT 1"))
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Supabase database health check failed")
+        return "Service unavailable", 503
+
+    # Check Storage bucket
+    try:
+        supabase.storage.from_("Images").list()
+    except Exception:
+        app.logger.exception("Supabase Storage health check failed")
+        return "Service unavailable", 503
+
+    return "OK", 200
+
+
+
 
 
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
