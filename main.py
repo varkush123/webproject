@@ -3,8 +3,6 @@ import math
 from flask import Flask, render_template, request, session, redirect
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
-from flask_mail import Mail
-import resend
 from dotenv import load_dotenv
 from datetime import datetime
 from supabase import create_client
@@ -51,8 +49,7 @@ def supabase_health():
 
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
-EMAIL_USER = os.getenv('EMAIL_USER')
-EMAIL_PASS = os.getenv('EMAIL_PASS')
+
 
 LOCAL_SERVER = os.getenv('local_server')
 LOCAL_URI = os.getenv('local_uri')
@@ -78,13 +75,6 @@ SUPABASE_KEY = os.getenv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY')
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_LOCATION
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = EMAIL_USER
-app.config['MAIL_PASSWORD'] = EMAIL_PASS
-
-mail = Mail(app) 
 
 
 
@@ -473,19 +463,20 @@ def delete(sno):
 
 
 
-@app.route("/contact", methods=['GET', 'POST'])
+
+@app.route("/contact", methods=["GET", "POST"])
 def contact():
-    if request.method == 'POST':
-        name = request.form.get('name', '').strip()
-        email = request.form.get('email', '').strip()
-        phone = request.form.get('phone', '').strip()
-        message = request.form.get('message', '').strip()
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip()
+        phone = request.form.get("phone", "").strip()
+        message = request.form.get("message", "").strip()
 
         if not name or not email or not message:
             return "Please fill in your name, email and message.", 400
 
+        # 1. Save the message in the database
         try:
-            # Save contact message in database
             entry = Contacts(
                 name=name,
                 phone_num=phone,
@@ -501,35 +492,13 @@ def contact():
             app.logger.exception("Contact message could not be saved")
             return "Message could not be saved. Please try again later.", 500
 
-        # Existing Resend email to website owner
-        try:
-            resend.api_key = os.getenv("RESEND_API_KEY")
-
-            result = resend.Emails.send({
-                "from": "Blog Contact Form <onboarding@resend.dev>",
-                "to": [os.getenv("RESEND_TO_EMAIL")],
-                "reply_to": email,
-                "subject": f"New Message from {name}",
-                "text": (
-                    f"Name: {name}\n"
-                    f"Email: {email}\n"
-                    f"Phone: {phone}\n\n"
-                    f"Message:\n{message}"
-                )
-            })
-
-            print("Resend email result:", result)
-
-        except Exception:
-            app.logger.exception("Owner notification email failed")
-
-        # Send confirmation to visitor using Google Apps Script
+        # 2. Send both emails through Google Apps Script
         try:
             email_service_url = os.getenv("EMAIL_SERVICE_URL")
             email_service_token = os.getenv("EMAIL_SERVICE_TOKEN")
 
             if not email_service_url or not email_service_token:
-                raise ValueError("Email service environment variables are missing")
+                raise ValueError("Email service settings are missing")
 
             response = requests.post(
                 email_service_url,
@@ -537,34 +506,39 @@ def contact():
                     "token": email_service_token,
                     "name": name,
                     "email": email,
+                    "phone": phone,
                     "message": message
                 },
-                timeout=20
+                timeout=30
             )
             response.raise_for_status()
 
             result = response.json()
 
             if not result.get("success"):
-                raise ValueError("Confirmation email service returned an error")
-
-            print("Visitor confirmation email sent.")
+                raise ValueError(
+                    result.get("message", "Email service failed")
+                )
 
         except Exception:
-            app.logger.exception("Visitor confirmation email failed")
+            app.logger.exception("Google Apps Script email service failed")
+            return (
+                "Your message was saved, but the emails could not be sent. "
+                "Please try again later.",
+                502
+            )
 
         return "Your message has been submitted successfully!"
 
     return render_template(
-        'contact.html',
+        "contact.html",
         fb_url=FB_URL,
         tw_url=TW_URL,
         gh_url=GH_URL,
         blog_name=BLOG_NAME,
         tag_line=TAG_LINE,
-        contact_bg=os.getenv('CONTACT_BG', '')
+        contact_bg=os.getenv("CONTACT_BG", "")
     )
-
 
 
 
