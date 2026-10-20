@@ -382,6 +382,9 @@ def delete(sno):
 
 @app.route("/contact", methods=["GET", "POST"])
 def contact():
+    status = None
+    status_message = ""
+
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         email = request.form.get("email", "").strip()
@@ -389,62 +392,63 @@ def contact():
         message = request.form.get("message", "").strip()
 
         if not name or not email or not message:
-            return "Please fill in your name, email and message.", 400
-
-        # 1. Save the message in the database
-        try:
-            entry = Contacts(
-                name=name,
-                phone_num=phone,
-                msg=message,
-                date=datetime.now(),
-                email=email
-            )
-            db.session.add(entry)
-            db.session.commit()
-
-        except Exception:
-            db.session.rollback()
-            app.logger.exception("Contact message could not be saved")
-            return "Message could not be saved. Please try again later.", 500
-
-        # 2. Send both emails through Google Apps Script
-        try:
-            email_service_url = os.getenv("EMAIL_SERVICE_URL")
-            email_service_token = os.getenv("EMAIL_SERVICE_TOKEN")
-
-            if not email_service_url or not email_service_token:
-                raise ValueError("Email service settings are missing")
-
-            response = requests.post(
-                email_service_url,
-                json={
-                    "token": email_service_token,
-                    "name": name,
-                    "email": email,
-                    "phone": phone,
-                    "message": message
-                },
-                timeout=30
-            )
-            response.raise_for_status()
-
-            result = response.json()
-
-            if not result.get("success"):
-                raise ValueError(
-                    result.get("message", "Email service failed")
+            status = "error"
+            status_message = "Please fill in your name, email and message."
+        else:
+            try:
+                entry = Contacts(
+                    name=name,
+                    phone_num=phone,
+                    msg=message,
+                    date=datetime.now(),
+                    email=email
                 )
+                db.session.add(entry)
+                db.session.commit()
 
-        except Exception:
-            app.logger.exception("Google Apps Script email service failed")
-            return (
-                "Your message was saved, but the emails could not be sent. "
-                "Please try again later.",
-                502
-            )
+            except Exception:
+                db.session.rollback()
+                app.logger.exception("Contact message could not be saved")
+                status = "error"
+                status_message = "Message could not be saved. Please try again later."
 
-        return "Your message has been submitted successfully!"
+            if status is None:
+                try:
+                    email_service_url = os.getenv("EMAIL_SERVICE_URL")
+                    email_service_token = os.getenv("EMAIL_SERVICE_TOKEN")
+
+                    if not email_service_url or not email_service_token:
+                        raise ValueError("Email service settings are missing")
+
+                    response = requests.post(
+                        email_service_url,
+                        json={
+                            "token": email_service_token,
+                            "name": name,
+                            "email": email,
+                            "phone": phone,
+                            "message": message
+                        },
+                        timeout=30
+                    )
+                    response.raise_for_status()
+                    result = response.json()
+
+                    if not result.get("success"):
+                        raise ValueError(
+                            result.get("message", "Email service failed")
+                        )
+
+                    status = "success"
+                    status_message = "Your message has been sent successfully!"
+
+                except Exception:
+                    app.logger.exception("Google Apps Script email service failed")
+                    status = "error"
+                    status_message = (
+                        "Your message was saved, but emails could not be sent. "
+                        "Please try again later."
+                    )
 
     return render_template(
         "contact.html",
@@ -453,7 +457,9 @@ def contact():
         gh_url=GH_URL,
         blog_name=BLOG_NAME,
         tag_line=TAG_LINE,
-        contact_bg=os.getenv("CONTACT_BG", "")
+        contact_bg=os.getenv("CONTACT_BG", ""),
+        form_status=status,
+        form_message=status_message
     )
 
 
